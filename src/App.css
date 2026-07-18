@@ -96,7 +96,11 @@
 }
 
 .sticky-note {
+  --note-x: 0px;
+  --note-y: 0px;
+
   position: relative;
+  z-index: 1;
   width: 100%;
   min-height: clamp(250px, 18vw, 300px);
   padding: clamp(28px, 2.1vw, 38px);
@@ -112,8 +116,26 @@
     0 16px 24px rgba(61, 38, 22, 0.18),
     0 4px 7px rgba(61, 38, 22, 0.16),
     inset 0 -1px 0 rgba(122, 96, 35, 0.1);
-  transform: rotate(-0.8deg);
+  transform: translate3d(var(--note-x), var(--note-y), 0) rotate(-0.8deg);
   transform-origin: center top;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sticky-note--dragging {
+  z-index: 5;
+  box-shadow:
+    0 20px 30px rgba(61, 38, 22, 0.22),
+    0 6px 10px rgba(61, 38, 22, 0.18),
+    inset 0 -1px 0 rgba(122, 96, 35, 0.1);
+  cursor: grabbing;
+  user-select: none;
+  will-change: transform;
+}
+
+.sticky-note--editing {
+  cursor: default;
+  touch-action: auto;
 }
 
 .sticky-note::after {
@@ -126,35 +148,58 @@
   content: '';
 }
 
-.sticky-note__delete {
+.sticky-note__actions {
   position: absolute;
   top: 17px;
   right: 17px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sticky-note__edit,
+.sticky-note__delete {
   display: grid;
   place-items: center;
-  width: 34px;
   height: 34px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 17px;
   color: rgba(62, 53, 39, 0.72);
   background: rgba(255, 255, 255, 0.2);
   font: inherit;
-  font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     color 160ms ease,
     background-color 160ms ease;
 }
 
+.sticky-note__edit {
+  padding-inline: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sticky-note__delete {
+  width: 34px;
+  font-size: 1.5rem;
+}
+
+.sticky-note__edit:hover,
 .sticky-note__delete:hover {
   color: #342c22;
   background: rgba(255, 255, 255, 0.36);
 }
 
-.sticky-note__delete:focus-visible {
+.sticky-note__edit:focus-visible,
+.sticky-note__delete:focus-visible,
+.sticky-note__save:focus-visible,
+.sticky-note__cancel:focus-visible,
+.sticky-note__title-input:focus-visible,
+.sticky-note__content-input:focus-visible {
   outline: 3px solid rgba(83, 61, 27, 0.35);
   outline-offset: 2px;
 }
@@ -162,7 +207,7 @@
 .sticky-note h2 {
   position: relative;
   z-index: 1;
-  margin: 0 38px 20px 0;
+  margin: 0 94px 20px 0;
   color: #342c22;
   font-size: clamp(1.35rem, 1.5vw, 1.65rem);
   font-weight: 750;
@@ -192,6 +237,84 @@
   overflow-wrap: anywhere;
 }
 
+.sticky-note__form {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: calc(clamp(250px, 18vw, 300px) - clamp(56px, 4.2vw, 76px));
+}
+
+.sticky-note__title-input,
+.sticky-note__content-input {
+  width: 100%;
+  border: 1px solid rgba(83, 61, 27, 0.24);
+  border-radius: 7px;
+  color: #342c22;
+  background: rgba(255, 248, 204, 0.58);
+  font: inherit;
+  touch-action: auto;
+}
+
+.sticky-note__title-input {
+  min-height: 42px;
+  padding: 8px 11px;
+  font-size: clamp(1.15rem, 1.3vw, 1.4rem);
+  font-weight: 750;
+}
+
+.sticky-note__content-input {
+  min-height: 124px;
+  max-height: 240px;
+  padding: 10px 11px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.sticky-note__form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.sticky-note__save,
+.sticky-note__cancel {
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.sticky-note__save {
+  border: 1px solid #674633;
+  color: #fffdf9;
+  background: #674633;
+}
+
+.sticky-note__save:hover {
+  background: #563a2b;
+}
+
+.sticky-note__cancel {
+  border: 1px solid rgba(83, 61, 27, 0.28);
+  color: #4a3b2b;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sticky-note__cancel:hover {
+  background: rgba(255, 255, 255, 0.36);
+}
+
 @media (max-width: 640px) {
   :root {
     --toolbar-height: 64px;
@@ -211,6 +334,10 @@
     padding: 28px;
   }
 
+  .sticky-note__form {
+    min-height: 184px;
+  }
+
   .board {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
@@ -220,7 +347,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .toolbar__button,
-  .sticky-note__delete {
+  .sticky-note__edit,
+  .sticky-note__delete,
+  .sticky-note__save,
+  .sticky-note__cancel {
     transition: none;
   }
 }

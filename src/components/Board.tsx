@@ -4,9 +4,16 @@ import { StickyNote } from './StickyNote'
 interface BoardProps {
   notes: readonly Note[]
   onDeleteNote: (noteId: string) => void
+  onUpdateNote: (noteId: string, title: string, content: string) => void
+  onMoveNote: (noteId: string, x: number, y: number) => void
 }
 
-export function Board({ notes, onDeleteNote }: BoardProps) {
+export function Board({
+  notes,
+  onDeleteNote,
+  onUpdateNote,
+  onMoveNote,
+}: BoardProps) {
   return (
     <main className="board" aria-label="포스트잇 게시판">
       {notes.length === 0 ? (
@@ -15,7 +22,13 @@ export function Board({ notes, onDeleteNote }: BoardProps) {
         </p>
       ) : (
         notes.map((note) => (
-          <StickyNote key={note.id} note={note} onDelete={onDeleteNote} />
+          <StickyNote
+            key={note.id}
+            note={note}
+            onDelete={onDeleteNote}
+            onUpdate={onUpdateNote}
+            onMove={onMoveNote}
+          />
         ))
       )}
     </main>
