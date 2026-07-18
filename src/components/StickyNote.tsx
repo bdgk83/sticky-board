@@ -9,6 +9,7 @@ import {
   MIN_NOTE_HEIGHT,
   MIN_NOTE_WIDTH,
   NOTE_COLORS,
+  PINNED_Z_INDEX_OFFSET,
 } from '../types/note'
 import type { Note, NoteColor } from '../types/note'
 
@@ -31,6 +32,7 @@ interface StickyNoteProps {
   onResize: (noteId: string, width: number, height: number) => void
   onChangeColor: (noteId: string, color: NoteColor) => void
   onBringToFront: (noteId: string) => void
+  onTogglePin: (noteId: string) => void
 }
 
 interface NoteStyle extends CSSProperties {
@@ -116,6 +118,7 @@ export function StickyNote({
   onResize,
   onChangeColor,
   onBringToFront,
+  onTogglePin,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -131,7 +134,7 @@ export function StickyNote({
     '--note-y': `${note.y}px`,
     '--note-width': `${note.width}px`,
     '--note-height': `${note.height}px`,
-    zIndex: note.zIndex,
+    zIndex: note.zIndex + (note.pinned ? PINNED_Z_INDEX_OFFSET : 0),
   }
   const noteClassName = `sticky-note sticky-note--${note.color}${isDragging ? ' sticky-note--dragging' : ''}${isResizing ? ' sticky-note--resizing' : ''}${isEditing ? ' sticky-note--editing' : ''}`
 
@@ -477,6 +480,15 @@ export function StickyNote({
       ) : (
         <>
           <div className="sticky-note__actions">
+            <button
+              className="sticky-note__pin"
+              type="button"
+              aria-label={`${note.title} 메모 ${note.pinned ? '고정 해제' : '고정'}`}
+              aria-pressed={note.pinned}
+              onClick={() => onTogglePin(note.id)}
+            >
+              {note.pinned ? '고정 해제' : '고정'}
+            </button>
             <button
               className="sticky-note__edit"
               type="button"

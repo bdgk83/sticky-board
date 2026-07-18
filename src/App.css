@@ -212,6 +212,7 @@
   gap: 6px;
 }
 
+.sticky-note__pin,
 .sticky-note__edit,
 .sticky-note__delete {
   display: grid;
@@ -231,10 +232,16 @@
     background-color 160ms ease;
 }
 
+.sticky-note__pin,
 .sticky-note__edit {
   padding-inline: 12px;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.sticky-note__pin[aria-pressed='true'] {
+  color: #fffdf9;
+  background: #674633;
 }
 
 .sticky-note__delete {
@@ -242,12 +249,14 @@
   font-size: 1.5rem;
 }
 
+.sticky-note__pin:hover,
 .sticky-note__edit:hover,
 .sticky-note__delete:hover {
   color: #342c22;
   background: rgba(255, 255, 255, 0.36);
 }
 
+.sticky-note__pin:focus-visible,
 .sticky-note__edit:focus-visible,
 .sticky-note__delete:focus-visible,
 .sticky-note__resize-handle:focus-visible,
@@ -272,7 +281,7 @@
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  margin: 0 94px 14px 0;
+  margin: 0 158px 14px 0;
   color: #342c22;
   font-size: clamp(1.35rem, 1.5vw, 1.65rem);
   font-weight: 750;
@@ -560,6 +569,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .toolbar__button,
+  .sticky-note__pin,
   .sticky-note__edit,
   .sticky-note__delete,
   .sticky-note__resize-handle,

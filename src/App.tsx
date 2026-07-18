@@ -36,12 +36,19 @@ function createNote(title: string, content: string, zIndex: number): Note {
     height: DEFAULT_NOTE_HEIGHT,
     color: DEFAULT_NOTE_COLOR,
     zIndex,
+    pinned: false,
   }
 }
 
-function getHighestNoteZIndex(notes: readonly Note[]): number {
+function getHighestNoteZIndex(
+  notes: readonly Note[],
+  pinned: boolean,
+): number {
   return notes.reduce(
-    (highestZIndex, note) => Math.max(highestZIndex, note.zIndex),
+    (highestZIndex, note) =>
+      note.pinned === pinned
+        ? Math.max(highestZIndex, note.zIndex)
+        : highestZIndex,
     0,
   )
 }
@@ -82,7 +89,7 @@ function App() {
 
   const handleAddNote = useCallback(() => {
     setNotes((currentNotes) => {
-      const nextZIndex = getHighestNoteZIndex(currentNotes) + 1
+      const nextZIndex = getHighestNoteZIndex(currentNotes, false) + 1
 
       return [
         ...currentNotes,
@@ -124,7 +131,10 @@ function App() {
         return currentNotes
       }
 
-      const highestZIndex = getHighestNoteZIndex(currentNotes)
+      const highestZIndex = getHighestNoteZIndex(
+        currentNotes,
+        targetNote.pinned,
+      )
 
       if (targetNote.zIndex === highestZIndex) {
         return currentNotes
@@ -133,6 +143,25 @@ function App() {
       return currentNotes.map((note) =>
         note.id === noteId
           ? { ...note, zIndex: highestZIndex + 1 }
+          : note,
+      )
+    })
+  }, [])
+
+  const handleToggleNotePin = useCallback((noteId: string) => {
+    setNotes((currentNotes) => {
+      const targetNote = currentNotes.find((note) => note.id === noteId)
+
+      if (targetNote === undefined) {
+        return currentNotes
+      }
+
+      const nextPinned = !targetNote.pinned
+      const nextZIndex = getHighestNoteZIndex(currentNotes, nextPinned) + 1
+
+      return currentNotes.map((note) =>
+        note.id === noteId
+          ? { ...note, pinned: nextPinned, zIndex: nextZIndex }
           : note,
       )
     })
@@ -183,6 +212,7 @@ function App() {
         onResizeNote={handleResizeNote}
         onChangeNoteColor={handleChangeNoteColor}
         onBringNoteToFront={handleBringNoteToFront}
+        onToggleNotePin={handleToggleNotePin}
       />
     </div>
   )

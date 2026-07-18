@@ -10,10 +10,11 @@ import {
 import type { Note, NoteColor } from '../types/note'
 
 const STORAGE_KEY = 'sticky-board-notes'
-const STORAGE_VERSION = 4
+const STORAGE_VERSION = 5
 const LEGACY_STORAGE_VERSION_1 = 1
 const LEGACY_STORAGE_VERSION_2 = 2
 const LEGACY_STORAGE_VERSION_3 = 3
+const LEGACY_STORAGE_VERSION_4 = 4
 
 interface StoredNotes {
   version: typeof STORAGE_VERSION
@@ -44,7 +45,7 @@ function isValidNoteZIndex(value: unknown): value is number {
 
 function normalizeNote(
   value: unknown,
-  storageVersion: 1 | 2 | 3 | 4,
+  storageVersion: 1 | 2 | 3 | 4 | 5,
   noteIndex: number,
 ): Note | null {
   if (
@@ -68,15 +69,13 @@ function normalizeNote(
     x: value.x,
     y: value.y,
     width:
-      (storageVersion === LEGACY_STORAGE_VERSION_3 ||
-        storageVersion === STORAGE_VERSION) &&
+      storageVersion >= LEGACY_STORAGE_VERSION_3 &&
       typeof value.width === 'number' &&
       Number.isFinite(value.width)
         ? clampNoteWidth(value.width)
         : DEFAULT_NOTE_WIDTH,
     height:
-      (storageVersion === LEGACY_STORAGE_VERSION_3 ||
-        storageVersion === STORAGE_VERSION) &&
+      storageVersion >= LEGACY_STORAGE_VERSION_3 &&
       typeof value.height === 'number' &&
       Number.isFinite(value.height)
         ? clampNoteHeight(value.height)
@@ -86,10 +85,29 @@ function normalizeNote(
         ? value.color
         : DEFAULT_NOTE_COLOR,
     zIndex:
-      storageVersion === STORAGE_VERSION && isValidNoteZIndex(value.zIndex)
+      storageVersion >= LEGACY_STORAGE_VERSION_4 &&
+      isValidNoteZIndex(value.zIndex)
         ? value.zIndex
         : noteIndex + DEFAULT_NOTE_Z_INDEX,
+    pinned: storageVersion === STORAGE_VERSION && value.pinned === true,
   }
+}
+
+function normalizeNoteZIndexes(notes: readonly Note[]): Note[] {
+  let nextRegularZIndex = DEFAULT_NOTE_Z_INDEX
+  let nextPinnedZIndex = DEFAULT_NOTE_Z_INDEX
+
+  return notes.map((note) => {
+    const zIndex = note.pinned ? nextPinnedZIndex : nextRegularZIndex
+
+    if (note.pinned) {
+      nextPinnedZIndex += 1
+    } else {
+      nextRegularZIndex += 1
+    }
+
+    return { ...note, zIndex }
+  })
 }
 
 function serializeNotes(notes: readonly Note[]): string {
@@ -117,6 +135,7 @@ export function loadNotes(): Note[] | null {
       (parsedValue.version !== LEGACY_STORAGE_VERSION_1 &&
         parsedValue.version !== LEGACY_STORAGE_VERSION_2 &&
         parsedValue.version !== LEGACY_STORAGE_VERSION_3 &&
+        parsedValue.version !== LEGACY_STORAGE_VERSION_4 &&
         parsedValue.version !== STORAGE_VERSION) ||
       !Array.isArray(parsedValue.notes)
     ) {
@@ -126,9 +145,11 @@ export function loadNotes(): Note[] | null {
 
     const storageVersion = parsedValue.version
     const seenIds = new Set<string>()
-    const seenZIndexes = new Set<number>()
+    const seenRegularZIndexes = new Set<number>()
+    const seenPinnedZIndexes = new Set<number>()
     const validNotes: Note[] = []
-    let shouldNormalizeZIndexes = storageVersion !== STORAGE_VERSION
+    let shouldNormalizeZIndexes =
+      storageVersion < LEGACY_STORAGE_VERSION_4
 
     for (const [noteIndex, value] of parsedValue.notes.entries()) {
       const note = normalizeNote(value, storageVersion, noteIndex)
@@ -138,9 +159,12 @@ export function loadNotes(): Note[] | null {
       }
 
       const hasValidStoredZIndex =
-        storageVersion === STORAGE_VERSION &&
+        storageVersion >= LEGACY_STORAGE_VERSION_4 &&
         isRecord(value) &&
         isValidNoteZIndex(value.zIndex)
+      const seenZIndexes = note.pinned
+        ? seenPinnedZIndexes
+        : seenRegularZIndexes
 
       if (!hasValidStoredZIndex || seenZIndexes.has(note.zIndex)) {
         shouldNormalizeZIndexes = true
@@ -157,10 +181,7 @@ export function loadNotes(): Note[] | null {
     }
 
     const notesToLoad = shouldNormalizeZIndexes
-      ? validNotes.map((note, noteIndex) => ({
-          ...note,
-          zIndex: noteIndex + DEFAULT_NOTE_Z_INDEX,
-        }))
+      ? normalizeNoteZIndexes(validNotes)
       : validNotes
     const normalizedValue = serializeNotes(notesToLoad)
     lastSavedValue =
