@@ -30,6 +30,7 @@ interface StickyNoteProps {
   onMove: (noteId: string, x: number, y: number) => void
   onResize: (noteId: string, width: number, height: number) => void
   onChangeColor: (noteId: string, color: NoteColor) => void
+  onBringToFront: (noteId: string) => void
 }
 
 interface NoteStyle extends CSSProperties {
@@ -114,6 +115,7 @@ export function StickyNote({
   onMove,
   onResize,
   onChangeColor,
+  onBringToFront,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -129,6 +131,7 @@ export function StickyNote({
     '--note-y': `${note.y}px`,
     '--note-width': `${note.width}px`,
     '--note-height': `${note.height}px`,
+    zIndex: note.zIndex,
   }
   const noteClassName = `sticky-note sticky-note--${note.color}${isDragging ? ' sticky-note--dragging' : ''}${isResizing ? ' sticky-note--resizing' : ''}${isEditing ? ' sticky-note--editing' : ''}`
 
@@ -188,6 +191,7 @@ export function StickyNote({
   }, [])
 
   function handleStartEditing() {
+    onBringToFront(note.id)
     setDraftTitle(note.title)
     setDraftContent(note.content)
     setIsEditing(true)
@@ -202,6 +206,11 @@ export function StickyNote({
     setDraftTitle(note.title)
     setDraftContent(note.content)
     setIsEditing(false)
+  }
+
+  function handleChangeColor(color: NoteColor) {
+    onBringToFront(note.id)
+    onChangeColor(note.id, color)
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
@@ -224,6 +233,7 @@ export function StickyNote({
       event.pointerType === 'touch' &&
       event.target.closest('.sticky-note__body') !== null
     ) {
+      onBringToFront(note.id)
       return
     }
 
@@ -251,6 +261,7 @@ export function StickyNote({
       element: event.currentTarget,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
+    onBringToFront(note.id)
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
@@ -360,6 +371,7 @@ export function StickyNote({
       element: event.currentTarget,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
+    onBringToFront(note.id)
     setIsResizing(true)
   }
 
@@ -499,7 +511,7 @@ export function StickyNote({
                   type="button"
                   aria-label={`${COLOR_LABELS[color]} 메모`}
                   aria-pressed={note.color === color}
-                  onClick={() => onChangeColor(note.id, color)}
+                  onClick={() => handleChangeColor(color)}
                 />
               ))}
             </div>

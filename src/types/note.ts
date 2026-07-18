@@ -9,6 +9,7 @@ export const NOTE_COLORS = [
 export type NoteColor = (typeof NOTE_COLORS)[number]
 
 export const DEFAULT_NOTE_COLOR: NoteColor = 'yellow'
+export const DEFAULT_NOTE_Z_INDEX = 1
 
 export const DEFAULT_NOTE_WIDTH = 320
 export const DEFAULT_NOTE_HEIGHT = 300
@@ -57,4 +58,5 @@ export interface Note {
   width: number
   height: number
   color: NoteColor
+  zIndex: number
 }

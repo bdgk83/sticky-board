@@ -8,6 +8,7 @@ interface BoardProps {
   onMoveNote: (noteId: string, x: number, y: number) => void
   onResizeNote: (noteId: string, width: number, height: number) => void
   onChangeNoteColor: (noteId: string, color: NoteColor) => void
+  onBringNoteToFront: (noteId: string) => void
 }
 
 export function Board({
@@ -17,6 +18,7 @@ export function Board({
   onMoveNote,
   onResizeNote,
   onChangeNoteColor,
+  onBringNoteToFront,
 }: BoardProps) {
   return (
     <main className="board" aria-label="포스트잇 게시판">
@@ -34,6 +36,7 @@ export function Board({
             onMove={onMoveNote}
             onResize={onResizeNote}
             onChangeColor={onChangeNoteColor}
+            onBringToFront={onBringNoteToFront}
           />
         ))
       )}

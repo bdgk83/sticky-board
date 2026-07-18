@@ -7,6 +7,7 @@ import {
   DEFAULT_NOTE_COLOR,
   DEFAULT_NOTE_HEIGHT,
   DEFAULT_NOTE_WIDTH,
+  DEFAULT_NOTE_Z_INDEX,
 } from './types/note'
 import type { Note, NoteColor } from './types/note'
 import { loadNotes, saveNotes } from './utils/storage'
@@ -24,7 +25,7 @@ function createNoteId(): string {
   return `note-${Date.now()}-${fallbackId}`
 }
 
-function createNote(title: string, content: string): Note {
+function createNote(title: string, content: string, zIndex: number): Note {
   return {
     id: createNoteId(),
     title,
@@ -34,11 +35,23 @@ function createNote(title: string, content: string): Note {
     width: DEFAULT_NOTE_WIDTH,
     height: DEFAULT_NOTE_HEIGHT,
     color: DEFAULT_NOTE_COLOR,
+    zIndex,
   }
 }
 
+function getHighestNoteZIndex(notes: readonly Note[]): number {
+  return notes.reduce(
+    (highestZIndex, note) => Math.max(highestZIndex, note.zIndex),
+    0,
+  )
+}
+
 const initialNotes = loadNotes() ?? [
-  createNote('오늘 할 일', 'Sticky Board 첫 화면 확인'),
+  createNote(
+    '오늘 할 일',
+    'Sticky Board 첫 화면 확인',
+    DEFAULT_NOTE_Z_INDEX,
+  ),
 ]
 
 function App() {
@@ -68,10 +81,14 @@ function App() {
   }, [])
 
   const handleAddNote = useCallback(() => {
-    setNotes((currentNotes) => [
-      ...currentNotes,
-      createNote('새 메모', '내용을 입력하세요'),
-    ])
+    setNotes((currentNotes) => {
+      const nextZIndex = getHighestNoteZIndex(currentNotes) + 1
+
+      return [
+        ...currentNotes,
+        createNote('새 메모', '내용을 입력하세요', nextZIndex),
+      ]
+    })
   }, [])
 
   const handleDeleteNote = useCallback((noteId: string) => {
@@ -99,6 +116,28 @@ function App() {
     )
   }, [])
 
+  const handleBringNoteToFront = useCallback((noteId: string) => {
+    setNotes((currentNotes) => {
+      const targetNote = currentNotes.find((note) => note.id === noteId)
+
+      if (targetNote === undefined) {
+        return currentNotes
+      }
+
+      const highestZIndex = getHighestNoteZIndex(currentNotes)
+
+      if (targetNote.zIndex === highestZIndex) {
+        return currentNotes
+      }
+
+      return currentNotes.map((note) =>
+        note.id === noteId
+          ? { ...note, zIndex: highestZIndex + 1 }
+          : note,
+      )
+    })
+  }, [])
+
   const handleResizeNote = useCallback(
     (noteId: string, width: number, height: number) => {
       const nextWidth = clampNoteWidth(width)
@@ -118,11 +157,17 @@ function App() {
 
   const handleChangeNoteColor = useCallback(
     (noteId: string, color: NoteColor) => {
-      setNotes((currentNotes) =>
-        currentNotes.map((note) =>
+      setNotes((currentNotes) => {
+        const targetNote = currentNotes.find((note) => note.id === noteId)
+
+        if (targetNote === undefined || targetNote.color === color) {
+          return currentNotes
+        }
+
+        return currentNotes.map((note) =>
           note.id === noteId ? { ...note, color } : note,
-        ),
-      )
+        )
+      })
     },
     [],
   )
@@ -137,6 +182,7 @@ function App() {
         onMoveNote={handleMoveNote}
         onResizeNote={handleResizeNote}
         onChangeNoteColor={handleChangeNoteColor}
+        onBringNoteToFront={handleBringNoteToFront}
       />
     </div>
   )

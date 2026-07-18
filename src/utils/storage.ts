@@ -4,14 +4,16 @@ import {
   DEFAULT_NOTE_COLOR,
   DEFAULT_NOTE_HEIGHT,
   DEFAULT_NOTE_WIDTH,
+  DEFAULT_NOTE_Z_INDEX,
   NOTE_COLORS,
 } from '../types/note'
 import type { Note, NoteColor } from '../types/note'
 
 const STORAGE_KEY = 'sticky-board-notes'
-const STORAGE_VERSION = 3
+const STORAGE_VERSION = 4
 const LEGACY_STORAGE_VERSION_1 = 1
 const LEGACY_STORAGE_VERSION_2 = 2
+const LEGACY_STORAGE_VERSION_3 = 3
 
 interface StoredNotes {
   version: typeof STORAGE_VERSION
@@ -31,7 +33,20 @@ function isNoteColor(value: unknown): value is NoteColor {
   )
 }
 
-function normalizeNote(value: unknown, storageVersion: 1 | 2 | 3): Note | null {
+function isValidNoteZIndex(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= DEFAULT_NOTE_Z_INDEX
+  )
+}
+
+function normalizeNote(
+  value: unknown,
+  storageVersion: 1 | 2 | 3 | 4,
+  noteIndex: number,
+): Note | null {
   if (
     !isRecord(value) ||
     typeof value.id !== 'string' ||
@@ -53,13 +68,15 @@ function normalizeNote(value: unknown, storageVersion: 1 | 2 | 3): Note | null {
     x: value.x,
     y: value.y,
     width:
-      storageVersion === STORAGE_VERSION &&
+      (storageVersion === LEGACY_STORAGE_VERSION_3 ||
+        storageVersion === STORAGE_VERSION) &&
       typeof value.width === 'number' &&
       Number.isFinite(value.width)
         ? clampNoteWidth(value.width)
         : DEFAULT_NOTE_WIDTH,
     height:
-      storageVersion === STORAGE_VERSION &&
+      (storageVersion === LEGACY_STORAGE_VERSION_3 ||
+        storageVersion === STORAGE_VERSION) &&
       typeof value.height === 'number' &&
       Number.isFinite(value.height)
         ? clampNoteHeight(value.height)
@@ -68,6 +85,10 @@ function normalizeNote(value: unknown, storageVersion: 1 | 2 | 3): Note | null {
       storageVersion !== LEGACY_STORAGE_VERSION_1 && isNoteColor(value.color)
         ? value.color
         : DEFAULT_NOTE_COLOR,
+    zIndex:
+      storageVersion === STORAGE_VERSION && isValidNoteZIndex(value.zIndex)
+        ? value.zIndex
+        : noteIndex + DEFAULT_NOTE_Z_INDEX,
   }
 }
 
@@ -95,6 +116,7 @@ export function loadNotes(): Note[] | null {
       !isRecord(parsedValue) ||
       (parsedValue.version !== LEGACY_STORAGE_VERSION_1 &&
         parsedValue.version !== LEGACY_STORAGE_VERSION_2 &&
+        parsedValue.version !== LEGACY_STORAGE_VERSION_3 &&
         parsedValue.version !== STORAGE_VERSION) ||
       !Array.isArray(parsedValue.notes)
     ) {
@@ -104,16 +126,28 @@ export function loadNotes(): Note[] | null {
 
     const storageVersion = parsedValue.version
     const seenIds = new Set<string>()
+    const seenZIndexes = new Set<number>()
     const validNotes: Note[] = []
+    let shouldNormalizeZIndexes = storageVersion !== STORAGE_VERSION
 
-    for (const value of parsedValue.notes) {
-      const note = normalizeNote(value, storageVersion)
+    for (const [noteIndex, value] of parsedValue.notes.entries()) {
+      const note = normalizeNote(value, storageVersion, noteIndex)
 
       if (note === null || seenIds.has(note.id)) {
         continue
       }
 
+      const hasValidStoredZIndex =
+        storageVersion === STORAGE_VERSION &&
+        isRecord(value) &&
+        isValidNoteZIndex(value.zIndex)
+
+      if (!hasValidStoredZIndex || seenZIndexes.has(note.zIndex)) {
+        shouldNormalizeZIndexes = true
+      }
+
       seenIds.add(note.id)
+      seenZIndexes.add(note.zIndex)
       validNotes.push(note)
     }
 
@@ -122,10 +156,16 @@ export function loadNotes(): Note[] | null {
       return null
     }
 
-    const normalizedValue = serializeNotes(validNotes)
+    const notesToLoad = shouldNormalizeZIndexes
+      ? validNotes.map((note, noteIndex) => ({
+          ...note,
+          zIndex: noteIndex + DEFAULT_NOTE_Z_INDEX,
+        }))
+      : validNotes
+    const normalizedValue = serializeNotes(notesToLoad)
     lastSavedValue =
       storedValue === normalizedValue ? normalizedValue : storedValue
-    return validNotes
+    return notesToLoad
   } catch {
     lastSavedValue = null
     return null
