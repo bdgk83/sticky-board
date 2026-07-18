@@ -6,6 +6,7 @@ interface BoardProps {
   onDeleteNote: (noteId: string) => void
   onUpdateNote: (noteId: string, title: string, content: string) => void
   onMoveNote: (noteId: string, x: number, y: number) => void
+  onResizeNote: (noteId: string, width: number, height: number) => void
   onChangeNoteColor: (noteId: string, color: NoteColor) => void
 }
 
@@ -14,6 +15,7 @@ export function Board({
   onDeleteNote,
   onUpdateNote,
   onMoveNote,
+  onResizeNote,
   onChangeNoteColor,
 }: BoardProps) {
   return (
@@ -30,6 +32,7 @@ export function Board({
             onDelete={onDeleteNote}
             onUpdate={onUpdateNote}
             onMove={onMoveNote}
+            onResize={onResizeNote}
             onChangeColor={onChangeNoteColor}
           />
         ))

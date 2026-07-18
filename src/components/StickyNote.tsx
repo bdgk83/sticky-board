@@ -3,7 +3,13 @@ import type {
   CSSProperties,
   PointerEvent as ReactPointerEvent,
 } from 'react'
-import { NOTE_COLORS } from '../types/note'
+import {
+  MAX_NOTE_HEIGHT,
+  MAX_NOTE_WIDTH,
+  MIN_NOTE_HEIGHT,
+  MIN_NOTE_WIDTH,
+  NOTE_COLORS,
+} from '../types/note'
 import type { Note, NoteColor } from '../types/note'
 
 const DRAG_THRESHOLD = 4
@@ -22,12 +28,15 @@ interface StickyNoteProps {
   onDelete: (noteId: string) => void
   onUpdate: (noteId: string, title: string, content: string) => void
   onMove: (noteId: string, x: number, y: number) => void
+  onResize: (noteId: string, width: number, height: number) => void
   onChangeColor: (noteId: string, color: NoteColor) => void
 }
 
-interface NotePositionStyle extends CSSProperties {
+interface NoteStyle extends CSSProperties {
   '--note-x': string
   '--note-y': string
+  '--note-width': string
+  '--note-height': string
 }
 
 interface MovementBounds {
@@ -44,6 +53,19 @@ interface DragSession extends MovementBounds {
   startX: number
   startY: number
   hasMoved: boolean
+  element: HTMLElement
+}
+
+interface ResizeSession {
+  pointerId: number
+  startClientX: number
+  startClientY: number
+  startWidth: number
+  startHeight: number
+  minWidth: number
+  minHeight: number
+  maxWidth: number
+  maxHeight: number
   element: HTMLElement
 }
 
@@ -90,20 +112,25 @@ export function StickyNote({
   onDelete,
   onUpdate,
   onMove,
+  onResize,
   onChangeColor,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(note.title)
   const [draftContent, setDraftContent] = useState(note.content)
   const noteElementRef = useRef<HTMLElement>(null)
   const dragSessionRef = useRef<DragSession | null>(null)
+  const resizeSessionRef = useRef<ResizeSession | null>(null)
   const titleId = `note-title-${note.id}`
-  const noteStyle: NotePositionStyle = {
+  const noteStyle: NoteStyle = {
     '--note-x': `${note.x}px`,
     '--note-y': `${note.y}px`,
+    '--note-width': `${note.width}px`,
+    '--note-height': `${note.height}px`,
   }
-  const noteClassName = `sticky-note sticky-note--${note.color}${isDragging ? ' sticky-note--dragging' : ''}${isEditing ? ' sticky-note--editing' : ''}`
+  const noteClassName = `sticky-note sticky-note--${note.color}${isDragging ? ' sticky-note--dragging' : ''}${isResizing ? ' sticky-note--resizing' : ''}${isEditing ? ' sticky-note--editing' : ''}`
 
   useEffect(() => {
     function constrainPosition() {
@@ -112,6 +139,7 @@ export function StickyNote({
 
       if (
         dragSessionRef.current !== null ||
+        resizeSessionRef.current !== null ||
         !(noteElement instanceof HTMLElement) ||
         !(boardElement instanceof HTMLElement)
       ) {
@@ -139,13 +167,22 @@ export function StickyNote({
   useEffect(() => {
     return () => {
       const dragSession = dragSessionRef.current
+      const resizeSession = resizeSessionRef.current
       dragSessionRef.current = null
+      resizeSessionRef.current = null
 
       if (
         dragSession !== null &&
         dragSession.element.hasPointerCapture(dragSession.pointerId)
       ) {
         dragSession.element.releasePointerCapture(dragSession.pointerId)
+      }
+
+      if (
+        resizeSession !== null &&
+        resizeSession.element.hasPointerCapture(resizeSession.pointerId)
+      ) {
+        resizeSession.element.releasePointerCapture(resizeSession.pointerId)
       }
     }
   }, [])
@@ -170,7 +207,9 @@ export function StickyNote({
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (
       isEditing ||
+      isResizing ||
       dragSessionRef.current !== null ||
+      resizeSessionRef.current !== null ||
       event.button !== 0 ||
       !(event.target instanceof Element)
     ) {
@@ -178,6 +217,13 @@ export function StickyNote({
     }
 
     if (event.target.closest(INTERACTIVE_SELECTOR) !== null) {
+      return
+    }
+
+    if (
+      event.pointerType === 'touch' &&
+      event.target.closest('.sticky-note__body') !== null
+    ) {
       return
     }
 
@@ -264,6 +310,113 @@ export function StickyNote({
     }
   }
 
+  function handleResizePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (
+      isEditing ||
+      isDragging ||
+      dragSessionRef.current !== null ||
+      resizeSessionRef.current !== null ||
+      event.button !== 0
+    ) {
+      return
+    }
+
+    const noteElement = noteElementRef.current
+    const boardElement = noteElement?.closest('.board')
+
+    if (
+      !(noteElement instanceof HTMLElement) ||
+      !(boardElement instanceof HTMLElement)
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const boardRect = boardElement.getBoundingClientRect()
+    const noteRect = noteElement.getBoundingClientRect()
+    const boardStyle = globalThis.getComputedStyle(boardElement)
+    const rightBoundary =
+      boardRect.right - readPixelValue(boardStyle.paddingRight)
+    const availableWidth = rightBoundary - noteRect.left - 4
+    const maxWidth = Math.min(
+      MAX_NOTE_WIDTH,
+      Math.max(MIN_NOTE_WIDTH, availableWidth),
+    )
+
+    resizeSessionRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startWidth: noteElement.offsetWidth,
+      startHeight: noteElement.offsetHeight,
+      minWidth: MIN_NOTE_WIDTH,
+      minHeight: MIN_NOTE_HEIGHT,
+      maxWidth,
+      maxHeight: MAX_NOTE_HEIGHT,
+      element: event.currentTarget,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setIsResizing(true)
+  }
+
+  function handleResizePointerMove(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    const resizeSession = resizeSessionRef.current
+
+    if (resizeSession === null || resizeSession.pointerId !== event.pointerId) {
+      return
+    }
+
+    const deltaX = event.clientX - resizeSession.startClientX
+    const deltaY = event.clientY - resizeSession.startClientY
+    const nextWidth = clamp(
+      resizeSession.startWidth + deltaX,
+      resizeSession.minWidth,
+      resizeSession.maxWidth,
+    )
+    const nextHeight = clamp(
+      resizeSession.startHeight + deltaY,
+      resizeSession.minHeight,
+      resizeSession.maxHeight,
+    )
+
+    event.preventDefault()
+    event.stopPropagation()
+    onResize(note.id, nextWidth, nextHeight)
+  }
+
+  function finishResizing(event: ReactPointerEvent<HTMLButtonElement>) {
+    const resizeSession = resizeSessionRef.current
+
+    if (resizeSession === null || resizeSession.pointerId !== event.pointerId) {
+      return
+    }
+
+    event.stopPropagation()
+    resizeSessionRef.current = null
+    setIsResizing(false)
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function handleResizeLostPointerCapture(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    event.stopPropagation()
+
+    if (resizeSessionRef.current?.pointerId === event.pointerId) {
+      resizeSessionRef.current = null
+      setIsResizing(false)
+    }
+  }
+
   return (
     <article
       ref={noteElementRef}
@@ -329,24 +482,40 @@ export function StickyNote({
               ×
             </button>
           </div>
-          <h2 id={titleId}>{note.title}</h2>
-          <p>{note.content}</p>
-          <div
-            className="sticky-note__color-palette"
-            role="group"
-            aria-label="메모 색상"
-          >
-            {NOTE_COLORS.map((color) => (
-              <button
-                key={color}
-                className={`sticky-note__color-option sticky-note__color-option--${color}`}
-                type="button"
-                aria-label={`${COLOR_LABELS[color]} 메모`}
-                aria-pressed={note.color === color}
-                onClick={() => onChangeColor(note.id, color)}
-              />
-            ))}
+          <div className="sticky-note__view">
+            <h2 id={titleId}>{note.title}</h2>
+            <div className="sticky-note__body">
+              <p>{note.content}</p>
+            </div>
+            <div
+              className="sticky-note__color-palette"
+              role="group"
+              aria-label="메모 색상"
+            >
+              {NOTE_COLORS.map((color) => (
+                <button
+                  key={color}
+                  className={`sticky-note__color-option sticky-note__color-option--${color}`}
+                  type="button"
+                  aria-label={`${COLOR_LABELS[color]} 메모`}
+                  aria-pressed={note.color === color}
+                  onClick={() => onChangeColor(note.id, color)}
+                />
+              ))}
+            </div>
           </div>
+          <button
+            className="sticky-note__resize-handle"
+            type="button"
+            aria-label={`${note.title} 메모 크기 조절`}
+            onPointerDown={handleResizePointerDown}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={finishResizing}
+            onPointerCancel={finishResizing}
+            onLostPointerCapture={handleResizeLostPointerCapture}
+          >
+            <span aria-hidden="true" />
+          </button>
         </>
       )}
     </article>

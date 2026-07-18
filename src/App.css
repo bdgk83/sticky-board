@@ -67,7 +67,7 @@
 .board {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 320px));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 320px));
   grid-auto-rows: max-content;
   align-content: start;
   gap: clamp(28px, 3vw, 48px);
@@ -98,6 +98,8 @@
 .sticky-note {
   --note-x: 0px;
   --note-y: 0px;
+  --note-width: 320px;
+  --note-height: 300px;
   --note-background: #f4d86e;
   --note-input-background: rgba(255, 248, 204, 0.58);
   --note-fold-shadow: rgba(142, 111, 41, 0.08);
@@ -105,8 +107,12 @@
 
   position: relative;
   z-index: 1;
-  width: 100%;
-  min-height: clamp(250px, 18vw, 300px);
+  width: var(--note-width);
+  min-width: 240px;
+  max-width: 700px;
+  height: var(--note-height);
+  min-height: 180px;
+  max-height: 700px;
   padding: clamp(28px, 2.1vw, 38px);
   overflow: hidden;
   color: #3e3527;
@@ -123,7 +129,7 @@
   transform: translate3d(var(--note-x), var(--note-y), 0) rotate(-0.8deg);
   transform-origin: center top;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .sticky-note--pink {
@@ -165,6 +171,17 @@
   will-change: transform;
 }
 
+.sticky-note--resizing {
+  z-index: 5;
+  box-shadow:
+    0 20px 30px rgba(61, 38, 22, 0.22),
+    0 6px 10px rgba(61, 38, 22, 0.18),
+    inset 0 -1px 0 rgba(122, 96, 35, 0.1);
+  cursor: nwse-resize;
+  user-select: none;
+  will-change: width, height;
+}
+
 .sticky-note--editing {
   cursor: default;
   touch-action: auto;
@@ -182,6 +199,7 @@
     var(--note-fold-highlight) 51% 100%
   );
   content: '';
+  pointer-events: none;
 }
 
 .sticky-note__actions {
@@ -232,6 +250,7 @@
 
 .sticky-note__edit:focus-visible,
 .sticky-note__delete:focus-visible,
+.sticky-note__resize-handle:focus-visible,
 .sticky-note__save:focus-visible,
 .sticky-note__cancel:focus-visible,
 .sticky-note__title-input:focus-visible,
@@ -240,15 +259,26 @@
   outline-offset: 2px;
 }
 
+.sticky-note__view {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .sticky-note h2 {
   position: relative;
   z-index: 1;
-  margin: 0 94px 20px 0;
+  flex-shrink: 0;
+  margin: 0 94px 14px 0;
   color: #342c22;
   font-size: clamp(1.35rem, 1.5vw, 1.65rem);
   font-weight: 750;
   line-height: 1.3;
   letter-spacing: -0.035em;
+  touch-action: none;
 }
 
 .board__empty {
@@ -273,14 +303,27 @@
   overflow-wrap: anywhere;
 }
 
+.sticky-note__body {
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  touch-action: pan-y;
+}
+
 .sticky-note__color-palette {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   gap: 7px;
+  flex-shrink: 0;
   width: max-content;
-  margin-top: 24px;
+  margin-top: 14px;
+  padding: 0 34px 6px 0;
 }
 
 .sticky-note__color-option {
@@ -337,13 +380,81 @@
   outline-offset: 2px;
 }
 
+.sticky-note__resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: rgba(62, 53, 39, 0.52);
+  background: transparent;
+  cursor: nwse-resize;
+  touch-action: none;
+  user-select: none;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.sticky-note__resize-handle:hover {
+  color: rgba(52, 44, 34, 0.82);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sticky-note__resize-handle:focus-visible {
+  outline-offset: -4px;
+}
+
+.sticky-note__resize-handle span {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+}
+
+.sticky-note__resize-handle span::before,
+.sticky-note__resize-handle span::after {
+  position: absolute;
+  right: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  transform-origin: right center;
+  content: '';
+}
+
+.sticky-note__resize-handle span::before {
+  bottom: 4px;
+  width: 17px;
+}
+
+.sticky-note__resize-handle span::after {
+  bottom: 9px;
+  width: 10px;
+}
+
+.sticky-note--resizing .sticky-note__resize-handle {
+  color: rgba(52, 44, 34, 0.9);
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .sticky-note__form {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: calc(clamp(250px, 18vw, 300px) - clamp(56px, 4.2vw, 76px));
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sticky-note__title-input,
@@ -358,6 +469,7 @@
 }
 
 .sticky-note__title-input {
+  flex-shrink: 0;
   min-height: 42px;
   padding: 8px 11px;
   font-size: clamp(1.15rem, 1.3vw, 1.4rem);
@@ -365,17 +477,18 @@
 }
 
 .sticky-note__content-input {
-  min-height: 124px;
-  max-height: 240px;
+  flex: 1;
+  min-height: 0;
   padding: 10px 11px;
   line-height: 1.6;
-  resize: vertical;
+  resize: none;
 }
 
 .sticky-note__form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-shrink: 0;
   margin-top: auto;
 }
 
@@ -430,12 +543,12 @@
   }
 
   .sticky-note {
-    min-height: 240px;
+    width: min(var(--note-width), 100%);
     padding: 28px;
   }
 
   .sticky-note__form {
-    min-height: 184px;
+    min-height: 0;
   }
 
   .board {
@@ -449,6 +562,7 @@
   .toolbar__button,
   .sticky-note__edit,
   .sticky-note__delete,
+  .sticky-note__resize-handle,
   .sticky-note__save,
   .sticky-note__cancel {
     transition: none;

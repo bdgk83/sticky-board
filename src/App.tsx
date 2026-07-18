@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Board } from './components/Board'
 import { Toolbar } from './components/Toolbar'
-import { DEFAULT_NOTE_COLOR } from './types/note'
+import {
+  clampNoteHeight,
+  clampNoteWidth,
+  DEFAULT_NOTE_COLOR,
+  DEFAULT_NOTE_HEIGHT,
+  DEFAULT_NOTE_WIDTH,
+} from './types/note'
 import type { Note, NoteColor } from './types/note'
 import { loadNotes, saveNotes } from './utils/storage'
 import './App.css'
@@ -25,6 +31,8 @@ function createNote(title: string, content: string): Note {
     content,
     x: 0,
     y: 0,
+    width: DEFAULT_NOTE_WIDTH,
+    height: DEFAULT_NOTE_HEIGHT,
     color: DEFAULT_NOTE_COLOR,
   }
 }
@@ -91,6 +99,23 @@ function App() {
     )
   }, [])
 
+  const handleResizeNote = useCallback(
+    (noteId: string, width: number, height: number) => {
+      const nextWidth = clampNoteWidth(width)
+      const nextHeight = clampNoteHeight(height)
+
+      setNotes((currentNotes) =>
+        currentNotes.map((note) =>
+          note.id === noteId &&
+          (note.width !== nextWidth || note.height !== nextHeight)
+            ? { ...note, width: nextWidth, height: nextHeight }
+            : note,
+        ),
+      )
+    },
+    [],
+  )
+
   const handleChangeNoteColor = useCallback(
     (noteId: string, color: NoteColor) => {
       setNotes((currentNotes) =>
@@ -110,6 +135,7 @@ function App() {
         onDeleteNote={handleDeleteNote}
         onUpdateNote={handleUpdateNote}
         onMoveNote={handleMoveNote}
+        onResizeNote={handleResizeNote}
         onChangeNoteColor={handleChangeNoteColor}
       />
     </div>

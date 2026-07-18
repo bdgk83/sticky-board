@@ -1,12 +1,17 @@
 import {
+  clampNoteHeight,
+  clampNoteWidth,
   DEFAULT_NOTE_COLOR,
+  DEFAULT_NOTE_HEIGHT,
+  DEFAULT_NOTE_WIDTH,
   NOTE_COLORS,
 } from '../types/note'
 import type { Note, NoteColor } from '../types/note'
 
 const STORAGE_KEY = 'sticky-board-notes'
-const STORAGE_VERSION = 2
-const LEGACY_STORAGE_VERSION = 1
+const STORAGE_VERSION = 3
+const LEGACY_STORAGE_VERSION_1 = 1
+const LEGACY_STORAGE_VERSION_2 = 2
 
 interface StoredNotes {
   version: typeof STORAGE_VERSION
@@ -26,7 +31,7 @@ function isNoteColor(value: unknown): value is NoteColor {
   )
 }
 
-function normalizeNote(value: unknown, storageVersion: 1 | 2): Note | null {
+function normalizeNote(value: unknown, storageVersion: 1 | 2 | 3): Note | null {
   if (
     !isRecord(value) ||
     typeof value.id !== 'string' ||
@@ -47,8 +52,20 @@ function normalizeNote(value: unknown, storageVersion: 1 | 2): Note | null {
     content: value.content,
     x: value.x,
     y: value.y,
+    width:
+      storageVersion === STORAGE_VERSION &&
+      typeof value.width === 'number' &&
+      Number.isFinite(value.width)
+        ? clampNoteWidth(value.width)
+        : DEFAULT_NOTE_WIDTH,
+    height:
+      storageVersion === STORAGE_VERSION &&
+      typeof value.height === 'number' &&
+      Number.isFinite(value.height)
+        ? clampNoteHeight(value.height)
+        : DEFAULT_NOTE_HEIGHT,
     color:
-      storageVersion === STORAGE_VERSION && isNoteColor(value.color)
+      storageVersion !== LEGACY_STORAGE_VERSION_1 && isNoteColor(value.color)
         ? value.color
         : DEFAULT_NOTE_COLOR,
   }
@@ -76,7 +93,8 @@ export function loadNotes(): Note[] | null {
 
     if (
       !isRecord(parsedValue) ||
-      (parsedValue.version !== LEGACY_STORAGE_VERSION &&
+      (parsedValue.version !== LEGACY_STORAGE_VERSION_1 &&
+        parsedValue.version !== LEGACY_STORAGE_VERSION_2 &&
         parsedValue.version !== STORAGE_VERSION) ||
       !Array.isArray(parsedValue.notes)
     ) {
