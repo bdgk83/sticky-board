@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Board } from './components/Board'
 import { Toolbar } from './components/Toolbar'
 import type { Note } from './types/note'
+import { loadNotes, saveNotes } from './utils/storage'
 import './App.css'
 
 let fallbackId = 0
+const SAVE_DEBOUNCE_MS = 200
 
 function createNoteId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
@@ -25,10 +27,35 @@ function createNote(title: string, content: string): Note {
   }
 }
 
+const initialNotes = loadNotes() ?? [
+  createNote('오늘 할 일', 'Sticky Board 첫 화면 확인'),
+]
+
 function App() {
-  const [notes, setNotes] = useState<Note[]>(() => [
-    createNote('오늘 할 일', 'Sticky Board 첫 화면 확인'),
-  ])
+  const [notes, setNotes] = useState<Note[]>(() => initialNotes)
+  const latestNotesRef = useRef(notes)
+
+  useEffect(() => {
+    latestNotesRef.current = notes
+    const saveTimer = globalThis.setTimeout(() => {
+      saveNotes(notes)
+    }, SAVE_DEBOUNCE_MS)
+
+    return () => globalThis.clearTimeout(saveTimer)
+  }, [notes])
+
+  useEffect(() => {
+    function flushLatestNotes() {
+      saveNotes(latestNotesRef.current)
+    }
+
+    globalThis.addEventListener('pagehide', flushLatestNotes)
+
+    return () => {
+      globalThis.removeEventListener('pagehide', flushLatestNotes)
+      flushLatestNotes()
+    }
+  }, [])
 
   const handleAddNote = useCallback(() => {
     setNotes((currentNotes) => [
