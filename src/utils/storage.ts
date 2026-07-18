@@ -1,7 +1,12 @@
-import type { Note } from '../types/note'
+import {
+  DEFAULT_NOTE_COLOR,
+  NOTE_COLORS,
+} from '../types/note'
+import type { Note, NoteColor } from '../types/note'
 
 const STORAGE_KEY = 'sticky-board-notes'
-const STORAGE_VERSION = 1
+const STORAGE_VERSION = 2
+const LEGACY_STORAGE_VERSION = 1
 
 interface StoredNotes {
   version: typeof STORAGE_VERSION
@@ -14,21 +19,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isNote(value: unknown): value is Note {
-  if (!isRecord(value)) {
-    return false
+function isNoteColor(value: unknown): value is NoteColor {
+  return (
+    typeof value === 'string' &&
+    NOTE_COLORS.some((noteColor) => noteColor === value)
+  )
+}
+
+function normalizeNote(value: unknown, storageVersion: 1 | 2): Note | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    value.id.length === 0 ||
+    typeof value.title !== 'string' ||
+    typeof value.content !== 'string' ||
+    typeof value.x !== 'number' ||
+    !Number.isFinite(value.x) ||
+    typeof value.y !== 'number' ||
+    !Number.isFinite(value.y)
+  ) {
+    return null
   }
 
-  return (
-    typeof value.id === 'string' &&
-    value.id.length > 0 &&
-    typeof value.title === 'string' &&
-    typeof value.content === 'string' &&
-    typeof value.x === 'number' &&
-    Number.isFinite(value.x) &&
-    typeof value.y === 'number' &&
-    Number.isFinite(value.y)
-  )
+  return {
+    id: value.id,
+    title: value.title,
+    content: value.content,
+    x: value.x,
+    y: value.y,
+    color:
+      storageVersion === STORAGE_VERSION && isNoteColor(value.color)
+        ? value.color
+        : DEFAULT_NOTE_COLOR,
+  }
 }
 
 function serializeNotes(notes: readonly Note[]): string {
@@ -53,29 +76,37 @@ export function loadNotes(): Note[] | null {
 
     if (
       !isRecord(parsedValue) ||
-      parsedValue.version !== STORAGE_VERSION ||
+      (parsedValue.version !== LEGACY_STORAGE_VERSION &&
+        parsedValue.version !== STORAGE_VERSION) ||
       !Array.isArray(parsedValue.notes)
     ) {
       lastSavedValue = null
       return null
     }
 
+    const storageVersion = parsedValue.version
     const seenIds = new Set<string>()
-    const validNotes = parsedValue.notes.filter((value): value is Note => {
-      if (!isNote(value) || seenIds.has(value.id)) {
-        return false
+    const validNotes: Note[] = []
+
+    for (const value of parsedValue.notes) {
+      const note = normalizeNote(value, storageVersion)
+
+      if (note === null || seenIds.has(note.id)) {
+        continue
       }
 
-      seenIds.add(value.id)
-      return true
-    })
+      seenIds.add(note.id)
+      validNotes.push(note)
+    }
 
     if (parsedValue.notes.length > 0 && validNotes.length === 0) {
       lastSavedValue = null
       return null
     }
 
-    lastSavedValue = serializeNotes(validNotes)
+    const normalizedValue = serializeNotes(validNotes)
+    lastSavedValue =
+      storedValue === normalizedValue ? normalizedValue : storedValue
     return validNotes
   } catch {
     lastSavedValue = null

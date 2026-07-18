@@ -3,17 +3,26 @@ import type {
   CSSProperties,
   PointerEvent as ReactPointerEvent,
 } from 'react'
-import type { Note } from '../types/note'
+import { NOTE_COLORS } from '../types/note'
+import type { Note, NoteColor } from '../types/note'
 
 const DRAG_THRESHOLD = 4
 const INTERACTIVE_SELECTOR =
   'button, input, textarea, select, a, [role="button"], [contenteditable="true"]'
+const COLOR_LABELS: Record<NoteColor, string> = {
+  yellow: '노란색',
+  pink: '분홍색',
+  blue: '파란색',
+  green: '초록색',
+  orange: '주황색',
+}
 
 interface StickyNoteProps {
   note: Note
   onDelete: (noteId: string) => void
   onUpdate: (noteId: string, title: string, content: string) => void
   onMove: (noteId: string, x: number, y: number) => void
+  onChangeColor: (noteId: string, color: NoteColor) => void
 }
 
 interface NotePositionStyle extends CSSProperties {
@@ -81,6 +90,7 @@ export function StickyNote({
   onDelete,
   onUpdate,
   onMove,
+  onChangeColor,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -93,7 +103,7 @@ export function StickyNote({
     '--note-x': `${note.x}px`,
     '--note-y': `${note.y}px`,
   }
-  const noteClassName = `sticky-note${isDragging ? ' sticky-note--dragging' : ''}${isEditing ? ' sticky-note--editing' : ''}`
+  const noteClassName = `sticky-note sticky-note--${note.color}${isDragging ? ' sticky-note--dragging' : ''}${isEditing ? ' sticky-note--editing' : ''}`
 
   useEffect(() => {
     function constrainPosition() {
@@ -321,6 +331,22 @@ export function StickyNote({
           </div>
           <h2 id={titleId}>{note.title}</h2>
           <p>{note.content}</p>
+          <div
+            className="sticky-note__color-palette"
+            role="group"
+            aria-label="메모 색상"
+          >
+            {NOTE_COLORS.map((color) => (
+              <button
+                key={color}
+                className={`sticky-note__color-option sticky-note__color-option--${color}`}
+                type="button"
+                aria-label={`${COLOR_LABELS[color]} 메모`}
+                aria-pressed={note.color === color}
+                onClick={() => onChangeColor(note.id, color)}
+              />
+            ))}
+          </div>
         </>
       )}
     </article>

@@ -1,4 +1,4 @@
-import type { Note } from '../types/note'
+import type { Note, NoteColor } from '../types/note'
 import { StickyNote } from './StickyNote'
 
 interface BoardProps {
@@ -6,6 +6,7 @@ interface BoardProps {
   onDeleteNote: (noteId: string) => void
   onUpdateNote: (noteId: string, title: string, content: string) => void
   onMoveNote: (noteId: string, x: number, y: number) => void
+  onChangeNoteColor: (noteId: string, color: NoteColor) => void
 }
 
 export function Board({
@@ -13,6 +14,7 @@ export function Board({
   onDeleteNote,
   onUpdateNote,
   onMoveNote,
+  onChangeNoteColor,
 }: BoardProps) {
   return (
     <main className="board" aria-label="포스트잇 게시판">
@@ -28,6 +30,7 @@ export function Board({
             onDelete={onDeleteNote}
             onUpdate={onUpdateNote}
             onMove={onMoveNote}
+            onChangeColor={onChangeNoteColor}
           />
         ))
       )}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Board } from './components/Board'
 import { Toolbar } from './components/Toolbar'
-import type { Note } from './types/note'
+import { DEFAULT_NOTE_COLOR } from './types/note'
+import type { Note, NoteColor } from './types/note'
 import { loadNotes, saveNotes } from './utils/storage'
 import './App.css'
 
@@ -24,6 +25,7 @@ function createNote(title: string, content: string): Note {
     content,
     x: 0,
     y: 0,
+    color: DEFAULT_NOTE_COLOR,
   }
 }
 
@@ -89,6 +91,17 @@ function App() {
     )
   }, [])
 
+  const handleChangeNoteColor = useCallback(
+    (noteId: string, color: NoteColor) => {
+      setNotes((currentNotes) =>
+        currentNotes.map((note) =>
+          note.id === noteId ? { ...note, color } : note,
+        ),
+      )
+    },
+    [],
+  )
+
   return (
     <div className="app-shell">
       <Toolbar onAddNote={handleAddNote} />
@@ -97,6 +110,7 @@ function App() {
         onDeleteNote={handleDeleteNote}
         onUpdateNote={handleUpdateNote}
         onMoveNote={handleMoveNote}
+        onChangeNoteColor={handleChangeNoteColor}
       />
     </div>
   )

@@ -98,6 +98,10 @@
 .sticky-note {
   --note-x: 0px;
   --note-y: 0px;
+  --note-background: #f4d86e;
+  --note-input-background: rgba(255, 248, 204, 0.58);
+  --note-fold-shadow: rgba(142, 111, 41, 0.08);
+  --note-fold-highlight: rgba(255, 239, 164, 0.38);
 
   position: relative;
   z-index: 1;
@@ -106,7 +110,7 @@
   padding: clamp(28px, 2.1vw, 38px);
   overflow: hidden;
   color: #3e3527;
-  background-color: #f4d86e;
+  background-color: var(--note-background);
   background-image:
     linear-gradient(105deg, rgba(255, 255, 255, 0.16), transparent 38%),
     repeating-linear-gradient(0deg, rgba(104, 82, 31, 0.018) 0 1px, transparent 1px 4px),
@@ -120,6 +124,34 @@
   transform-origin: center top;
   cursor: grab;
   touch-action: none;
+}
+
+.sticky-note--pink {
+  --note-background: #efb8c6;
+  --note-input-background: rgba(255, 235, 241, 0.6);
+  --note-fold-shadow: rgba(130, 59, 78, 0.08);
+  --note-fold-highlight: rgba(255, 221, 232, 0.42);
+}
+
+.sticky-note--blue {
+  --note-background: #b8d9e8;
+  --note-input-background: rgba(235, 248, 253, 0.6);
+  --note-fold-shadow: rgba(45, 91, 111, 0.08);
+  --note-fold-highlight: rgba(218, 243, 251, 0.42);
+}
+
+.sticky-note--green {
+  --note-background: #c2dba8;
+  --note-input-background: rgba(242, 251, 230, 0.6);
+  --note-fold-shadow: rgba(65, 96, 38, 0.08);
+  --note-fold-highlight: rgba(232, 247, 213, 0.42);
+}
+
+.sticky-note--orange {
+  --note-background: #efbd78;
+  --note-input-background: rgba(255, 239, 214, 0.6);
+  --note-fold-shadow: rgba(126, 77, 26, 0.08);
+  --note-fold-highlight: rgba(255, 225, 181, 0.42);
 }
 
 .sticky-note--dragging {
@@ -144,7 +176,11 @@
   bottom: 0;
   width: 38px;
   height: 38px;
-  background: linear-gradient(135deg, rgba(142, 111, 41, 0.08) 0 48%, rgba(255, 239, 164, 0.38) 51% 100%);
+  background: linear-gradient(
+    135deg,
+    var(--note-fold-shadow) 0 48%,
+    var(--note-fold-highlight) 51% 100%
+  );
   content: '';
 }
 
@@ -237,6 +273,70 @@
   overflow-wrap: anywhere;
 }
 
+.sticky-note__color-palette {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  margin-top: 24px;
+}
+
+.sticky-note__color-option {
+  --color-option: #f4d86e;
+
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid rgba(62, 53, 39, 0.18);
+  border-radius: 50%;
+  background: var(--color-option);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sticky-note__color-option--pink {
+  --color-option: #efb8c6;
+}
+
+.sticky-note__color-option--blue {
+  --color-option: #b8d9e8;
+}
+
+.sticky-note__color-option--green {
+  --color-option: #c2dba8;
+}
+
+.sticky-note__color-option--orange {
+  --color-option: #efbd78;
+}
+
+.sticky-note__color-option:hover {
+  border-color: rgba(52, 44, 34, 0.55);
+}
+
+.sticky-note__color-option[aria-pressed='true'] {
+  border-color: #4b3c2d;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.52);
+}
+
+.sticky-note__color-option[aria-pressed='true']::after {
+  color: #3d3327;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  content: '✓';
+}
+
+.sticky-note__color-option:focus-visible {
+  outline: 3px solid rgba(83, 61, 27, 0.35);
+  outline-offset: 2px;
+}
+
 .sticky-note__form {
   position: relative;
   z-index: 1;
@@ -252,7 +352,7 @@
   border: 1px solid rgba(83, 61, 27, 0.24);
   border-radius: 7px;
   color: #342c22;
-  background: rgba(255, 248, 204, 0.58);
+  background: var(--note-input-background);
   font: inherit;
   touch-action: auto;
 }
